@@ -29,6 +29,9 @@ S_deembed2 = deembed_sparams(S_dut2, S_short2, S_open2, Z0);
 write_sparams_csv('inductor_deembedded_1.csv', freq1, S_deembed1);
 write_sparams_csv('inductor_deembedded_2.csv', freq2, S_deembed2);
 
+plot_before_after(freq1, S_dut1, S_deembed1, 'DUT 1');
+plot_before_after(freq2, S_dut2, S_deembed2, 'DUT 2');
+
 disp('De-embedding complete. Output written to:');
 disp('  inductor_deembedded_1.csv');
 disp('  inductor_deembedded_2.csv');
@@ -110,4 +113,25 @@ function write_sparams_csv(filename, freq, S)
     );
 
     writetable(out, filename);
+end
+
+function plot_before_after(freq, S_before, S_after, labelText)
+    s11_before = squeeze(S_before(1, 1, :));
+    s21_before = squeeze(S_before(2, 1, :));
+    s11_after = squeeze(S_after(1, 1, :));
+    s21_after = squeeze(S_after(2, 1, :));
+
+    figure('Name', ['S11 ' labelText], 'Color', 'w');
+    plot(freq, 20*log10(abs(s11_before)), 'b-', 'LineWidth', 1.2); hold on;
+    plot(freq, 20*log10(abs(s11_after)), 'r--', 'LineWidth', 1.2);
+    grid on; xlabel('Frequency (Hz)'); ylabel('S11 (dB)');
+    title(['S11 Before/After De-embedding - ' labelText]);
+    legend('Before', 'After', 'Location', 'best');
+
+    figure('Name', ['S21 ' labelText], 'Color', 'w');
+    plot(freq, 20*log10(abs(s21_before)), 'b-', 'LineWidth', 1.2); hold on;
+    plot(freq, 20*log10(abs(s21_after)), 'r--', 'LineWidth', 1.2);
+    grid on; xlabel('Frequency (Hz)'); ylabel('S21 (dB)');
+    title(['S21 Before/After De-embedding - ' labelText]);
+    legend('Before', 'After', 'Location', 'best');
 end
