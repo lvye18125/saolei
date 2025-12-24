@@ -18,6 +18,8 @@ files = struct(...
 Z0 = 50 * eye(2);
 
 % ---- Read S-parameters ----
+Z0 = 50 * eye(2);
+
 [freq1, S_dut1] = read_sparams(files.dut1);
 [~, S_short1] = read_sparams(files.short1);
 [~, S_open1] = read_sparams(files.open1);
@@ -35,6 +37,12 @@ write_sparams_csv('inductor_deembedded_1.csv', freq1, S_deembed1);
 write_sparams_csv('inductor_deembedded_2.csv', freq2, S_deembed2);
 
 % ---- Plot before/after ----
+S_deembed1 = deembed_sparams(S_dut1, S_short1, S_open1, Z0);
+S_deembed2 = deembed_sparams(S_dut2, S_short2, S_open2, Z0);
+
+write_sparams_csv('inductor_deembedded_1.csv', freq1, S_deembed1);
+write_sparams_csv('inductor_deembedded_2.csv', freq2, S_deembed2);
+
 plot_before_after(freq1, S_dut1, S_deembed1, 'DUT 1');
 plot_before_after(freq2, S_dut2, S_deembed2, 'DUT 2');
 
