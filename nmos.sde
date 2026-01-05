@@ -1,0 +1,226 @@
+; Reinitializing SDE 
+(sde:clear)
+; set coordinate system up direction 
+(sde:set-process-up-direction "+z")
+
+;----------------------------------------------------------------------
+; Setting parameters
+; - lateral
+(define Ltot 1.0)   ; [um] Lateral extend total 
+(define Lg   0.2)   ; [um] Gate length
+(define Lsp  0.1)   ; [um] Spacer length
+
+; - layers
+(define Hsub 0.8)   ; [um] Substrate thickness
+(define Hbox 0.1)   ; [um] Buried oxide thickness
+(define Hepi 0.1)   ; [um] EPI thickness
+(define Tox  @Tox@) ; [um] Gate oxide thickness
+(define Hpol 0.2)   ; [um] Poly gate thickness
+
+; - other
+;   - spacer rounding
+(define fillet-radius 0.08) ; [um] Rounding radius
+(define Lbc (/ Lg 4.0))     ; [um] Length of body contact
+
+;   - EPI layer doping level
+(define EpiDop 2e17 ) ; [1/cm3]
+
+;----------------------------------------------------------------------
+; Derived quantities
+(define Xmax (/ Ltot 2.0))
+(define Xg   (/ Lg   2.0))
+(define Xsp  (+ Xg   Lsp))
+
+(define Yepi Hepi)
+(define Ybox Yepi)
+(define Ysub (+ Ybox Hsub))
+
+(define Ygox (* Tox -1.0))
+(define Ypol (- Ygox Hpol))
+
+(define Xbc1 (* Xg -1.0))   ; Body tie start
+(define Xbc2 (+ Xbc1 Lbc))  ; Body tie end
+
+(define Lcont (- Xmax Xsp))  
+;----------------------------------------------------------------------
+; Overlap resolution: New replaces Old
+(sdegeo:set-default-boolean "ABA")
+
+;----------------------------------------------------------------------
+; Creating substrate region
+(sdegeo:create-rectangle 
+  (position (* Xmax -1.0) Ybox 0.0 ) 
+  (position    Xmax       Ysub 0.0 ) 
+  "Silicon" "R.Substrate" 
+)
+
+; Creating epi region
+(sdegeo:create-rectangle 
+  (position (* Xmax -1.0)  0.0 0.0 ) 
+  (position    Xmax       Yepi 0.0 ) 
+  "Silicon" "R.Siliconepi" 
+)
+
+; Creating gate oxide
+(sdegeo:create-rectangle 
+  (position (* Xsp -1.0) 0.0 0.0 ) 
+  (position    Xsp       Ygox 0.0 ) 
+  "Oxide" "R.Gateox"
+)
+; Creating spacers regions
+(sdegeo:create-rectangle 
+  (position (* Xsp -1.0) Ygox 0.0 ) 
+  (position    Xsp       Ypol 0.0 ) 
+  "Nitride" "R.Spacer"
+)
+
+; Creating PolySilicon gate
+(sdegeo:create-rectangle 
+  (position (* Xg -1.0) Ygox 0.0 ) 
+  (position    Xg       Ypol 0.0 ) 
+  "PolySilicon" "R.Polygate"
+)
+
+;----------------------------------------------------------------------
+; - rounding left spacer
+(sdegeo:fillet-2d 
+ (find-vertex-id (position (* Xsp -1.0) Ypol 0.0 ))
+ fillet-radius)
+
+; - rounding right spacer
+(sdegeo:fillet-2d 
+ (find-vertex-id (position Xsp Ypol 0.0 ))
+ fillet-radius)
+
+
+;----------------------------------------------------------------------
+; Contact definitions
+(sdegeo:set-contact 
+ (find-edge-id (position (* (+ Xmax Xsp) -0.5) 0.0 0.0))
+ "source" )
+(sdegeo:set-contact 
+ (find-edge-id (position (* (+ Xmax Xsp)  0.5) 0.0 0.0))
+ "drain")
+(sdegeo:set-contact 
+ (find-edge-id (position 0.0 Ypol 0.0))
+ "gate")
+(sdegeo:set-contact 
+ (find-edge-id (position 0.0 Ysub 0.0))
+ "substrate")
+; Inseting additional vertices for the body tie
+(sdegeo:insert-vertex (position Xbc1 Yepi 0.0))
+(sdegeo:insert-vertex (position Xbc2 Yepi 0.0))
+(sdegeo:set-contact 
+ (find-edge-id (position (* (+ Xbc1 Xbc2) 0.5) Yepi 0.0))
+ "bodytie")
+
+;----------------------------------------------------------------------
+; Profiles:
+; - Substrate
+(sdedr:define-constant-profile "Const.Substrate" 
+ "BoronActiveConcentration" 1e16 )
+(sdedr:define-constant-profile-region  "PlaceCD.Substrate" 
+ "Const.Substrate" "R.Substrate" )
+
+; - EPI
+(sdedr:define-constant-profile "Const.SiEpi" 
+ "BoronActiveConcentration" EpiDop )
+(sdedr:define-constant-profile-region  "PlaceCD.SiEpi" 
+ "Const.SiEpi" "R.Siliconepi" )
+
+; - Poly
+(sdedr:define-constant-profile "Const.Gate" 
+ "ArsenicActiveConcentration" 1e20 )
+(sdedr:define-constant-profile-region "PlaceCD.Gate" 
+ "Const.Gate" "R.Polygate" )
+
+; Source/Drain base line definitions
+(sdedr:define-refeval-window "BaseLine.Source" "Line"  
+ (position (* Xmax -2.0) 0.0 0.0)  
+ (position (* Xsp  -1.0) 0.0 0.0) )
+(sdedr:define-refeval-window "BaseLine.Drain" "Line"  
+ (position Xsp 0.0 0.0)  
+ (position (* Xmax 2.0) 0.0 0.0) )
+
+; Source/Drain implant definition
+(sdedr:define-gaussian-profile "Impl.SDprof"
+ "PhosphorusActiveConcentration" 
+ "PeakPos" 0  "PeakVal" 1e20
+ "ValueAtDepth" EpiDop "Depth" (* Hepi 1.2)
+ "Gauss"  "Factor" 0.4
+)
+
+; Source/Drain implants
+(sdedr:define-analytical-profile-placement "Impl.Source" 
+ "Impl.SDprof" "BaseLine.Source" "Positive" "NoReplace" "Eval")
+(sdedr:define-analytical-profile-placement "Impl.Drain" 
+ "Impl.SDprof" "BaseLine.Drain" "Positive" "NoReplace" "Eval")
+
+; Source/Drain extensions base line definitions
+(sdedr:define-refeval-window "BaseLine.SourceExt" "Line"  
+ (position (* Xmax -2.0) 0.0 0.0)  
+ (position (* Xg  -1.0) 0.0 0.0) )
+(sdedr:define-refeval-window "BaseLine.DrainExt" "Line"  
+ (position    Xg        0.0 0.0)  
+ (position (* Xmax 2.0) 0.0 0.0) )
+
+; Source/Drain implant definition
+(sdedr:define-gaussian-profile "Impl.SDextprof"
+ "ArsenicActiveConcentration" 
+ "PeakPos" 0  "PeakVal" 5e18
+ "ValueAtDepth" EpiDop "Depth" (* Hepi 0.35)
+ "Gauss"  "Factor" 0.8
+)
+
+; Source/Drain implants
+(sdedr:define-analytical-profile-placement "Impl.SourceExt" 
+ "Impl.SDextprof" "BaseLine.SourceExt" "Positive" "NoReplace" "Eval")
+(sdedr:define-analytical-profile-placement "Impl.DrainExt" 
+ "Impl.SDextprof" "BaseLine.DrainExt" "Positive" "NoReplace" "Eval")
+
+;----------------------------------------------------------------------
+; Meshing Strategy:
+
+;   - pn junction resolution
+(define Gpn 0.0025) ; [um]
+
+; Substrate
+(sdedr:define-refinement-size "Ref.Substrate" 
+	(/ Ltot 4.0)  (/ Hsub 8.0) 
+	Gpn            Gpn 
+)
+(sdedr:define-refinement-function "Ref.Substrate" 
+	"DopingConcentration" "MaxTransDiff" 1
+)
+(sdedr:define-refinement-function "Ref.Substrate" "MaxLenInt" 
+	"Silicon" "Oxide" 0.001 1.5 "DoubleSide"
+)
+(sdedr:define-refinement-region "RefPlace.Substrate" "Ref.Substrate" "R.Substrate" )
+
+; EPI
+(sdedr:define-refinement-size "Ref.SiEpi" 
+  (/ Lcont 4.0)  (/ Hepi 8.0) 
+  Gpn            Gpn 
+ )
+(sdedr:define-refinement-function "Ref.SiEpi" 
+ "DopingConcentration" "MaxTransDiff" 1
+)
+(sdedr:define-refinement-function "Ref.SiEpi" "MaxLenInt" 
+"Silicon" "Oxide" 0.0002 1.5 "DoubleSide"
+)
+(sdedr:define-refinement-region "RefPlace.SiEpi" 
+ "Ref.SiEpi" "R.Siliconepi" 
+)
+
+; Gate oxide
+(sdedr:define-refinement-size "Ref.GOX" 
+  (/ Ltot 4.0)  (/ Tox 4.0) 
+  Gpn           (/ Tox 8.0) 
+)
+(sdedr:define-refinement-region "RefPlace.GOX" 
+ "Ref.GOX" "R.Gateox" 
+)
+
+;----------------------------------------------------------------------
+; Meshing the device structure
+(sde:build-mesh "n@node@")
