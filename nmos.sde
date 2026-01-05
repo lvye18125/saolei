@@ -31,6 +31,7 @@
 (define Xg   (/ Lg   2.0))
 (define Xsp  (+ Xg   Lsp))
 
+(define Yepi 0.0)
 (define Yepi Hepi)
 (define Ybox Yepi)
 (define Ysub (+ Ybox Hsub))
@@ -166,6 +167,7 @@
 
 ; Source/Drain implant definition
 (sdedr:define-gaussian-profile "Impl.SDextprof"
+ "PhosphorusActiveConcentration" 
  "ArsenicActiveConcentration" 
  "PeakPos" 0  "PeakVal" 5e18
  "ValueAtDepth" EpiDop "Depth" (* Hepi 0.35)
@@ -174,6 +176,9 @@
 
 ; Source/Drain implants
 (sdedr:define-analytical-profile-placement "Impl.SourceExt" 
+ "Impl.SDextprof" "BaseLine.SourceExt" "Positive" "Replace" "Eval")
+(sdedr:define-analytical-profile-placement "Impl.DrainExt" 
+ "Impl.SDextprof" "BaseLine.DrainExt" "Positive" "Replace" "Eval")
  "Impl.SDextprof" "BaseLine.SourceExt" "Positive" "NoReplace" "Eval")
 (sdedr:define-analytical-profile-placement "Impl.DrainExt" 
  "Impl.SDextprof" "BaseLine.DrainExt" "Positive" "NoReplace" "Eval")
