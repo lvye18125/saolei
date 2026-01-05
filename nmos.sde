@@ -31,7 +31,7 @@
 (define Xg   (/ Lg   2.0))
 (define Xsp  (+ Xg   Lsp))
 
-(define Yepi Hepi)
+(define Yepi 0.0)
 (define Ybox Yepi)
 (define Ysub (+ Ybox Hsub))
 
@@ -52,13 +52,6 @@
   (position (* Xmax -1.0) Ybox 0.0 ) 
   (position    Xmax       Ysub 0.0 ) 
   "Silicon" "R.Substrate" 
-)
-
-; Creating epi region
-(sdegeo:create-rectangle 
-  (position (* Xmax -1.0)  0.0 0.0 ) 
-  (position    Xmax       Yepi 0.0 ) 
-  "Silicon" "R.Siliconepi" 
 )
 
 ; Creating gate oxide
@@ -121,12 +114,6 @@
  "BoronActiveConcentration" 1e16 )
 (sdedr:define-constant-profile-region  "PlaceCD.Substrate" 
  "Const.Substrate" "R.Substrate" )
-
-; - EPI
-(sdedr:define-constant-profile "Const.SiEpi" 
- "BoronActiveConcentration" EpiDop )
-(sdedr:define-constant-profile-region  "PlaceCD.SiEpi" 
- "Const.SiEpi" "R.Siliconepi" )
 
 ; - Poly
 (sdedr:define-constant-profile "Const.Gate" 
@@ -196,21 +183,6 @@
 	"Silicon" "Oxide" 0.001 1.5 "DoubleSide"
 )
 (sdedr:define-refinement-region "RefPlace.Substrate" "Ref.Substrate" "R.Substrate" )
-
-; EPI
-(sdedr:define-refinement-size "Ref.SiEpi" 
-  (/ Lcont 4.0)  (/ Hepi 8.0) 
-  Gpn            Gpn 
- )
-(sdedr:define-refinement-function "Ref.SiEpi" 
- "DopingConcentration" "MaxTransDiff" 1
-)
-(sdedr:define-refinement-function "Ref.SiEpi" "MaxLenInt" 
-"Silicon" "Oxide" 0.0002 1.5 "DoubleSide"
-)
-(sdedr:define-refinement-region "RefPlace.SiEpi" 
- "Ref.SiEpi" "R.Siliconepi" 
-)
 
 ; Gate oxide
 (sdedr:define-refinement-size "Ref.GOX" 
